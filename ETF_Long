@@ -10,11 +10,12 @@ import pandas as pd
 import yfinance as yf
 import numpy as np
 import matplotlib.pyplot as plt
+import statistics as stc
+import math
 
 def accessdata(stocklist):
     d,dates=[],[]
     for i in stocklist:
-        tckr=i
         a=yf.Ticker(i)
         prices=a.history(period='max',interval='1d')
         prices=prices.drop(prices.index[np.where(prices.index<'2008-01-07 00:00:00')])
@@ -33,58 +34,91 @@ def rebalance(index,allData,stocklist):
         allData['Value'][index]=initialCapital
         "Total Value at t=0"
         
-        allData['Cash'][index]=allData['Value'][index]- \
-        sum([allData['Value '+i][index] for i in stocklist]) 
-        "Cash at t=0"
+        for i in stocklist:
+            allData['Shares '+i][index]=round(allData['Value'][index]*dic[i]/allData[i][index],0)
+            "Shares at t=0 == Roundown(total value*weight/price)"
+            
+            allData['Value '+i][index]=allData['Shares '+i][index]*allData[i][index]
+            "Calculating individual value at t=0"
         
     else:
-        allData['Value'][index]=sum([allData['Value '+i][index] for i in stocklist]) \
-        +allData['Cash'][index]
         
-    for i in stocklist:
-        allData['Shares '+i][index]=round(allData['Value'][index]*dic[i]/allData[i][index],0)
-        "Shares at t=0 == Roundown(total value*weight/price)"
+        for i in stocklist:
+            
+            allData['Shares '+i][index]=round(allData['Value'][allData.index.get_loc(index)-1]\
+                                          *dic[i]/allData[i][index],0)
+            "Shares at t=t == Roundown(total value(t-1)*weight/price)"
+            
+            allData['Value '+i][index]=allData['Shares '+i][index]*allData[i][index]
+            "Calculating individual value at t=t"
+            
+        allData['Cash'][index]=-sum([(allData['Shares '+i][index]-\
+                                  allData['Shares '+i][allData.index.get_loc(index)-1])*\
+                                 allData[i][index] for i in stocklist])
+        
+        allData['Value'][index]=sum([allData['Value '+i][index] for i in stocklist])\
+            +allData['Cash'][index]
+    
+    if str(index)=='2008-01-07 00:00:00':
+        
+        allData['Cash'][index]=allData['Value'][index]- \
+            sum([allData['Value '+i][index] for i in stocklist]) 
+        "Cash at t=0"
     
     return allData
 
 def initialize(stocklist):
+    "Used to initialise the collumns to 0"
+    
     for i in stocklist:
         allData['Value '+i]=pd.DataFrame(np.zeros(len(allData)))
         allData['Shares '+i]=pd.DataFrame(np.zeros(len(allData)))
+        
+    allData['Value']=pd.DataFrame(np.zeros(len(allData))).fillna(0)
     allData['Cash']=pd.DataFrame(np.zeros(len(allData)))
     
     return allData
 
 def computeParameters(stocklist,allData):
     "To compute in Normal events (Not Start and Rebalacing)"
+    allData['Value'][index]=0
     
     for i in stocklist:
-        allData['PnL']=allData['Value '+i][index]
-        allData['Value '+i][index]=allData['Shares '+i]*allData[i]
+        allData['Shares '+i][index]=allData['Shares '+i][allData.index.get_loc(index)-1]
+        "Computes individual shares at t=t"
+        
+        allData['Value '+i][index]=allData['Shares '+i][index]*allData[i][index]
+        "Computes individual values at t=t"
+        
         allData['Value'][index]+=allData['Value '+i][index]
+        "Adds sum of individual values to the total value at t=t"
+        
+    allData['Cash'][index]=-sum([(allData['Shares '+i][index]-\
+                                  allData['Shares '+i][allData.index.get_loc(index)-1])*\
+                                 allData[i][index] for i in stocklist])
+    "Computes cash position at t=t"
         
     allData['Value'][index]+=allData['Cash'][index]
+    "Adds cash to the total value at t=t"
     
     return allData
 
 if __name__=="__main__":
     stocklist=['TLT','SPEM','IVV','XLF','XLY','XLI','IAU','SLV','USO','UNG']
-
+    PortfolioWeights=[0.1,0.1,0.2,0.07,0.07,0.07,0.05,0.15,0.12,0.08]
+    dic=dict(zip(stocklist,PortfolioWeights))
+    
     count=-1
     
     allData=pd.DataFrame([])
     allData=accessdata(stocklist)
     initialCapital=1000
-    PortfolioWeights=[0.1,0.1,0.2,0.07,0.07,0.07,0.05,0.15,0.12,0.08]
-    dic=dict(zip(stocklist,PortfolioWeights))
-    
-    
-    allData['Value']=pd.DataFrame(np.zeros(len(allData)))
 
     allData=initialize(stocklist)
     
     for index,row in allData.iterrows():
         loc=allData.index.get_loc(index)
+        print(round(abs(abs(loc-len(allData))/len(allData)-1)*100))
     
         if count==-1:
             allData=rebalance(index,allData,stocklist)
@@ -94,9 +128,15 @@ if __name__=="__main__":
             allData=rebalance(index,allData,stocklist)
             count=0
         else:
-            
-
-
-print(max(d))
-
-plt.plot(allData['Value'])
+            allData=computeParameters(stocklist, allData)
+            count+=1
+    
+    rtn=(allData['Value'][len(allData)-1]-initialCapital)/initialCapital
+    AnnualisedReturn=(1+rtn)**(1/(len(allData)/252))-1
+    std=stc.stdev(allData['Value'])/math.sqrt(252)
+    SharpeRatio=(AnnualisedReturn-0.6)/std
+    
+    plt.plot(allData['Value'])
+    print("Annualised Standard Deviation: " + str(std))
+    print("Annualised Return: " + str(AnnualisedReturn))
+    print("Sharpe Ratio: "+str(SharpeRatio))
