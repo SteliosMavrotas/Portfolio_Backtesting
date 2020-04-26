@@ -71,3 +71,32 @@ if __name__=="__main__":
     stocklist=['TLT','SPEM','IVV','XLF','XLY','XLI','IAU','SLV','USO','UNG']
 
     count=-1
+    
+    allData=pd.DataFrame([])
+    allData=accessdata(stocklist)
+    initialCapital=1000
+    PortfolioWeights=[0.1,0.1,0.2,0.07,0.07,0.07,0.05,0.15,0.12,0.08]
+    dic=dict(zip(stocklist,PortfolioWeights))
+    
+    
+    allData['Value']=pd.DataFrame(np.zeros(len(allData)))
+
+    allData=initialize(stocklist)
+    
+    for index,row in allData.iterrows():
+        loc=allData.index.get_loc(index)
+    
+        if count==-1:
+            allData=rebalance(index,allData,stocklist)
+            count+=1
+            
+        elif count==30:
+            allData=rebalance(index,allData,stocklist)
+            count=0
+        else:
+            
+
+
+print(max(d))
+
+plt.plot(allData['Value'])
