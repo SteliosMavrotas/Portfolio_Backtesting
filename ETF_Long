@@ -11,59 +11,63 @@ import yfinance as yf
 import numpy as np
 import matplotlib.pyplot as plt
 
-stocklist=['TLT','SPEM','IVV','XLF','XLY','XLI','IAU','SLV','USO','UNG']
-dates=[]
-d=[]
-allData=pd.DataFrame([])
-initialCapital=1000
-PortfolioWeights=[0.1,0.1,0.2,0.07,0.07,0.07,0.05,0.15,0.12,0.08]
-dic=dict(zip(stocklist,PortfolioWeights))
-
-for i in stocklist:
-    tckr=i
-    a=yf.Ticker(i)
-    prices=a.history(period='max',interval='1d')
-    prices=prices.drop(prices.index[np.where(prices.index<'2008-01-07 00:00:00')])
-    allData[i]=prices['Close']
-    prices.to_csv('InvestingDGR/'+i+'.csv')
-    d.append(min(prices.index))
-    dates.append(i+" "+str(min(prices.index)))
-
-allData.index=prices.index
-allData['Value']=pd.DataFrame(np.zeros(len(allData)))
-
-for i in stocklist:
-    allData['Value '+i]=pd.DataFrame(np.zeros(len(allData)))
-
-def rebalance(index,row):
-    loc=allData.index.get_loc(index)
-    if str(index)=='2008-01-07 00:00:00':
-        allData['Value'][index]=initialCapital
-    else:
-        allData['Value'][index]=allData['Value'].iloc[loc-1]
-        
+def accessdata(stocklist):
+    d,dates=[],[]
     for i in stocklist:
-        allData['Value '+i][index]=dic[i]* allData['Value'][index]
+        tckr=i
+        a=yf.Ticker(i)
+        prices=a.history(period='max',interval='1d')
+        prices=prices.drop(prices.index[np.where(prices.index<'2008-01-07 00:00:00')])
+        allData[i]=prices['Close']
+        prices.to_csv('InvestingDGR/'+i+'.csv')
+        d.append(min(prices.index))
+        dates.append(i+" "+str(min(prices.index)))
+        allData.index=prices.index
         
-count=-1
-
-
-
-for index,row in allData.iterrows():
+    return allData
+        
+def rebalance(index,allData,stocklist):
     loc=allData.index.get_loc(index)
     
-    if count==-1:
-        rebalance(index,row)
-        count+=1
+    if str(index)=='2008-01-07 00:00:00':
+        allData['Value'][index]=initialCapital
+        "Total Value at t=0"
         
-    elif count==3:
-        rebalance(index,row)
-        count=0
+        allData['Cash'][index]=allData['Value'][index]- \
+        sum([allData['Value '+i][index] for i in stocklist]) 
+        "Cash at t=0"
+        
     else:
-        for i in stocklist:    
-            allData['Value '+i][index]=allData['Value '+i].iloc[loc-1]*(1+(allData[i][index]-allData[i].iloc[loc-1]))
-            allData['Value']+=allData['Value '+i].iloc[loc-1]*(1+(allData[i][index]-allData[i].iloc[loc-1]))
+        allData['Value'][index]=sum([allData['Value '+i][index] for i in stocklist]) \
+        +allData['Cash'][index]
+        
+    for i in stocklist:
+        allData['Shares '+i][index]=round(allData['Value'][index]*dic[i]/allData[i][index],0)
+        "Shares at t=0 == Roundown(total value*weight/price)"
+    
+    return allData
 
-print(max(d))
+def initialize(stocklist):
+    for i in stocklist:
+        allData['Value '+i]=pd.DataFrame(np.zeros(len(allData)))
+        allData['Shares '+i]=pd.DataFrame(np.zeros(len(allData)))
+    allData['Cash']=pd.DataFrame(np.zeros(len(allData)))
+    
+    return allData
 
-plt.plot(allData['Value'])
+def computeParameters(stocklist,allData):
+    "To compute in Normal events (Not Start and Rebalacing)"
+    
+    for i in stocklist:
+        allData['PnL']=allData['Value '+i][index]
+        allData['Value '+i][index]=allData['Shares '+i]*allData[i]
+        allData['Value'][index]+=allData['Value '+i][index]
+        
+    allData['Value'][index]+=allData['Cash'][index]
+    
+    return allData
+
+if __name__=="__main__":
+    stocklist=['TLT','SPEM','IVV','XLF','XLY','XLI','IAU','SLV','USO','UNG']
+
+    count=-1
