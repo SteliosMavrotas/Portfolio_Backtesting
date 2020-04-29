@@ -52,9 +52,13 @@ def rebalance(index,allData,stocklist):
             allData['Value '+i][index]=allData['Shares '+i][index]*allData[i][index]
             "Calculating individual value at t=t"
             
-        allData['Cash'][index]=-sum([(allData['Shares '+i][index]-\
+        allData['Cash'][index]=allData['Cash'][allData.index.get_loc(index)-1]
+        "Adds cash balance of the previous day"
+        
+        allData['Cash'][index]+=-sum([(allData['Shares '+i][index]-\
                                   allData['Shares '+i][allData.index.get_loc(index)-1])*\
                                  allData[i][index] for i in stocklist])
+        "Calculates the cash balance at t=t"
         
         allData['Value'][index]=sum([allData['Value '+i][index] for i in stocklist])\
             +allData['Cash'][index]
@@ -93,7 +97,10 @@ def computeParameters(stocklist,allData):
         allData['Value'][index]+=allData['Value '+i][index]
         "Adds sum of individual values to the total value at t=t"
         
-    allData['Cash'][index]=-sum([(allData['Shares '+i][index]-\
+    allData['Cash'][index]=allData['Cash'][allData.index.get_loc(index)-1]
+    "Adds the cash balance of t-1"
+    
+    allData['Cash'][index]+=-sum([(allData['Shares '+i][index]-\
                                   allData['Shares '+i][allData.index.get_loc(index)-1])*\
                                  allData[i][index] for i in stocklist])
     "Computes cash position at t=t"
@@ -103,10 +110,24 @@ def computeParameters(stocklist,allData):
     
     return allData
 
+def computeCorrelationMatrix(allData,stocklist):
+    
+    correlation=pd.DataFrame([np.zeros((len(stocklist),len(stocklist)))])
+    correlation=correlation.set_index(stocklist,'Stock List')
+    correlation=correlation.columns=stocklist
+    
+    return correlation
+
 if __name__=="__main__":
-    stocklist=['TLT','SPEM','IVV','XLF','XLY','XLI','IAU','SLV','USO','UNG']
-    PortfolioWeights=[0.1,0.1,0.2,0.07,0.07,0.07,0.05,0.15,0.12,0.08]
+    stocklist=['TLT','SPEM','IVV','XLF','XLY','XLI','IAU','SLV','USO']
+    PortfolioWeights=[0.1,0.1,0.2,0.12,0.12,0.12,0.05,0.15,0.05]
+    if sum(PortfolioWeights) is not 1:
+        print("Sum of weights is not equal to 1")
+        exit()
+        
     dic=dict(zip(stocklist,PortfolioWeights))
+    
+    
     
     count=-1
     
@@ -115,6 +136,8 @@ if __name__=="__main__":
     initialCapital=1000
 
     allData=initialize(stocklist)
+    
+    '''correlation=computeCorrelationMatrix(allData,stocklist)'''
     
     for index,row in allData.iterrows():
         loc=allData.index.get_loc(index)
@@ -140,3 +163,5 @@ if __name__=="__main__":
     print("Annualised Standard Deviation: " + str(std))
     print("Annualised Return: " + str(AnnualisedReturn))
     print("Sharpe Ratio: "+str(SharpeRatio))
+    
+    
