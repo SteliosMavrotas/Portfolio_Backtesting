@@ -111,22 +111,25 @@ def computeParameters(stocklist,allData):
     return allData
 
 def computeCorrelationMatrix(allData,stocklist):
+    "Used to compute the covariance matrix of the stock choices"
     
-    correlation=pd.DataFrame([np.zeros((len(stocklist),len(stocklist)))])
-    correlation=correlation.set_index(stocklist,'Stock List')
-    correlation=correlation.columns=stocklist
+    correlation=allData[[i for i in stocklist]]
+    
+    correlation=pd.DataFrame({y:x for y,x in zip(stocklist,np.corrcoef(correlation,rowvar=False))})
+    
+    correlation["index"]=pd.DataFrame(stocklist)
+    correlation=correlation.set_index("index")
+    
+    stockStd=pd.DataFrame({"Standard Deviation":[stc.stdev(allData[i])/math.sqrt(252)\
+                           for i in stocklist],"index":stocklist})
+    stockStd=stockStd.set_index("index")
     
     return correlation
 
 if __name__=="__main__":
     stocklist=['TLT','SPEM','IVV','XLF','XLY','XLI','IAU','SLV','USO']
-    PortfolioWeights=[0.1,0.1,0.2,0.12,0.12,0.12,0.05,0.15,0.05]
-    if sum(PortfolioWeights) is not 1:
-        print("Sum of weights is not equal to 1")
-        exit()
-        
+    PortfolioWeights=[0.1,0.1,0.2,0.07,0.07,0.07,0.05,0.15,0.20]
     dic=dict(zip(stocklist,PortfolioWeights))
-    
     
     
     count=-1
@@ -137,7 +140,7 @@ if __name__=="__main__":
 
     allData=initialize(stocklist)
     
-    '''correlation=computeCorrelationMatrix(allData,stocklist)'''
+    correlation=computeCorrelationMatrix(allData,stocklist)
     
     for index,row in allData.iterrows():
         loc=allData.index.get_loc(index)
