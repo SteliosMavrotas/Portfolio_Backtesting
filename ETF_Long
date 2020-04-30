@@ -12,6 +12,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import statistics as stc
 import math
+import seaborn as snb
+import itertools
 
 def accessdata(stocklist):
     d,dates=[],[]
@@ -111,7 +113,8 @@ def computeParameters(stocklist,allData):
     return allData
 
 def computeCorrelationMatrix(allData,stocklist):
-    "Used to compute the covariance matrix of the stock choices"
+    """Used to compute the covariance matrix and standard deviation for 
+    each stock of the stock choices"""
     
     correlation=allData[[i for i in stocklist]]
     
@@ -120,17 +123,49 @@ def computeCorrelationMatrix(allData,stocklist):
     correlation["index"]=pd.DataFrame(stocklist)
     correlation=correlation.set_index("index")
     
+    "Create legends for the heatmap of the correlation matrix"
+    
+    combinations=np.array([i[0]+i[1] for i in list(itertools.product(stocklist,2))]).\
+        shape(len(stocklist),len(stocklist))
+    
+    "Create a correlation matrix with the stock choises"
+    
+    snb.heatmap(correlation,cmap='Spectral')
+    
+    return correlation
+
+
+def calculateStockReturns(allData,stocklist):
+    
+    "Function to plot stock returns over standard deviation"
+    
     stockStd=pd.DataFrame({"Standard Deviation":[stc.stdev(allData[i])/math.sqrt(252)\
                            for i in stocklist],"index":stocklist})
     stockStd=stockStd.set_index("index")
     
-    return correlation
+    stockRtrn=[(allData['Value '+i][len(allData)-1]-allData['Value '+i][0])/\
+               allData['Value '+i][0] for i in stocklist]
+        
+    stockRtrn=pd.DataFrame({"Returns":[(1+i)**(1/(len(allData)/252))-1 for i in stockRtrn],\
+                           "index":stocklist})
+    
+    stockRtrn=stockRtrn.set_index('index')
+    
+    "Creating a graph of returns over standard deviation to optimise portfolio"
+    
+    plt.xlabel('Standard Deviation')
+
+    plt.ylabel('Stock Returns') 
+    
+    plt.title('Stock Returns over Standard Deviation')
+    plt.plot(stockStd,stockRtrn)
+    
+    return stockStd,stockRtrn
 
 if __name__=="__main__":
     stocklist=['TLT','SPEM','IVV','XLF','XLY','XLI','IAU','SLV','USO']
     PortfolioWeights=[0.1,0.1,0.2,0.07,0.07,0.07,0.05,0.15,0.20]
     dic=dict(zip(stocklist,PortfolioWeights))
-    
     
     count=-1
     
@@ -157,6 +192,8 @@ if __name__=="__main__":
             allData=computeParameters(stocklist, allData)
             count+=1
     
+    stockStd,stockRtrn=calculateStockReturns(allData,stocklist)
+    
     rtn=(allData['Value'][len(allData)-1]-initialCapital)/initialCapital
     AnnualisedReturn=(1+rtn)**(1/(len(allData)/252))-1
     std=stc.stdev(allData['Value'])/math.sqrt(252)
@@ -166,5 +203,3 @@ if __name__=="__main__":
     print("Annualised Standard Deviation: " + str(std))
     print("Annualised Return: " + str(AnnualisedReturn))
     print("Sharpe Ratio: "+str(SharpeRatio))
-    
-    
