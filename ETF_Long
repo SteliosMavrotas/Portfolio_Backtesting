@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sat Apr 25 14:16:11 2020
-
 @author: SteliosMavrotas
 """
 
@@ -125,8 +124,8 @@ def computeCorrelationMatrix(allData,stocklist):
     
     "Create legends for the heatmap of the correlation matrix"
     
-    combinations=np.array([i[0]+i[1] for i in list(itertools.product(stocklist,2))]).\
-        shape(len(stocklist),len(stocklist))
+    combinations=np.array([i[0]+i[1] for i in list(itertools.product(stocklist,repeat=2))])
+    '''shape(9,9)'''
     
     "Create a correlation matrix with the stock choises"
     
